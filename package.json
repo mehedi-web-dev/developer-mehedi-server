@@ -1,0 +1,26 @@
+{
+  "name": "developer-mehedi-server",
+  "version": "1.0.0",
+  "description": "Developer Mehedi Portfolio Backend Server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "developer-mehedi",
+    "better-auth",
+    "express",
+    "mongodb"
+  ],
+  "author": "Developer Mehedi",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@better-auth/mongo-adapter": "^1.7.28",
+    "better-auth": "^1.7.28",
+    "express": "^5.3.0",
+    "mongodb": "^7.9.1"
+  }
+}
