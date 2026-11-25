@@ -1,6 +1,6 @@
 # developer-mehedi-server
 
-Backend API server for **Developer Mehedi Portfolio**, built with Express 5, Better Auth, and MongoDB Atlas.
+Backend API server for **Developer Mehedi Portfolio**, built with Express 5, Better Auth, Mongoose, and MongoDB Atlas.
 
 ---
 
@@ -9,7 +9,7 @@ Backend API server for **Developer Mehedi Portfolio**, built with Express 5, Bet
 - **Runtime**: Node.js (v20+)
 - **Framework**: Express 5
 - **Authentication**: Better Auth (`better-auth`, `@better-auth/mongo-adapter`)
-- **Database**: MongoDB Driver (`mongodb`)
+- **Database & ODM**: MongoDB Driver (`mongodb`) & Mongoose (`mongoose`)
 - **Environment**: Native Node.js `process.loadEnvFile()` / `.env` support
 
 ---
@@ -20,7 +20,35 @@ Backend API server for **Developer Mehedi Portfolio**, built with Express 5, Bet
 developer-mehedi-server/
 ├── src/
 │   ├── config/
-│   │   └── db.js            # MongoDB client pooling, lazy db/client proxies & index management
+│   │   └── db.js            # Unified MongoDB client + Mongoose connection management
+│   ├── models/              # Mongoose data models
+│   │   ├── Service.js       # Services offered model
+│   │   ├── Project.js       # Portfolio projects model
+│   │   ├── Review.js        # Client testimonials & reviews model
+│   │   ├── FAQ.js           # Frequently asked questions model
+│   │   ├── Contact.js       # Contact inquiries model
+│   │   ├── SiteSettings.js  # Personal info, experience & skills model
+│   │   └── index.js         # Unified models export
+│   ├── controllers/         # REST API route controllers
+│   │   ├── service.controller.js
+│   │   ├── project.controller.js
+│   │   ├── review.controller.js
+│   │   ├── faq.controller.js
+│   │   ├── siteSettings.controller.js
+│   │   └── contact.controller.js
+│   ├── routes/              # Express API routers
+│   │   ├── service.routes.js
+│   │   ├── project.routes.js
+│   │   ├── review.routes.js
+│   │   ├── faq.routes.js
+│   │   ├── siteSettings.routes.js
+│   │   ├── contact.routes.js
+│   │   └── index.js
+│   ├── middleware/
+│   │   └── rateLimiter.js   # Sliding-window in-memory abuse protection
+│   ├── utils/
+│   │   ├── slugify.js       # URL-safe slug generator
+│   │   └── response.js      # Standard JSON response helpers
 │   ├── lib/
 │   │   ├── auth.js          # Better Auth initialization & MongoDB adapter integration
 │   │   └── admin.js         # Server-side admin verification and account initialization
@@ -84,11 +112,25 @@ npm start
 
 ## 📡 API Endpoints
 
+### System & Health
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/` | API welcome & operational status |
+| `GET` | `/` | API status and directory of endpoints |
 | `GET` | `/api/health` | Comprehensive database connection and env diagnostics |
 | `ALL` | `/api/auth/*` | Better Auth endpoints (sign-in, session, sign-out) |
+
+### Public Portfolio APIs
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/services` | Paginated list of published services (`?page=1&limit=10`) |
+| `GET` | `/api/services/featured` | Top 3 published and featured services |
+| `GET` | `/api/projects` | Paginated list of published projects (`?page=1&limit=9&category=...`) |
+| `GET` | `/api/projects/featured` | Top 3 published and featured projects |
+| `GET` | `/api/projects/:slug` | Single published project by unique slug |
+| `GET` | `/api/reviews` | Paginated list of approved reviews (`?page=1&limit=10&featured=true`) |
+| `GET` | `/api/faqs` | Active FAQs ordered by priority |
+| `GET` | `/api/site-settings` | Public profile, skills, experience, and site information |
+| `POST` | `/api/contact` | Submit contact inquiry (rate limited: 5 req/15 min/IP, honeypot protected) |
 
 ---
 

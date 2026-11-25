@@ -1,4 +1,5 @@
 import { MongoClient } from 'mongodb';
+import mongoose from 'mongoose';
 
 // Ensure environment variables are loaded in Node if process.loadEnvFile is available
 if (typeof process.loadEnvFile === 'function') {
@@ -41,8 +42,8 @@ export function getClient() {
 
     isDummyClient = false;
     client = new MongoClient(activeUri, {
-      serverSelectionTimeoutMS: 10000,
-      connectTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 15000,
+      connectTimeoutMS: 30000,
       retryWrites: true,
       retryReads: true,
     });
@@ -65,7 +66,8 @@ export function getDB() {
 }
 
 /**
- * Connects to MongoDB and verifies connectivity with a ping command.
+ * Connects to MongoDB via Native MongoClient (for Better Auth) and Mongoose (for Models),
+ * verifying connectivity with a ping command.
  */
 export async function connectDB() {
   const activeUri = process.env.MONGODB_URI || uri;
@@ -75,7 +77,7 @@ export async function connectDB() {
 
   const activeDbName = process.env.DB_NAME || dbName;
 
-  if (isConnected && db && client && !isDummyClient) {
+  if (isConnected && db && client && !isDummyClient && mongoose.connection.readyState === 1) {
     return db;
   }
 
@@ -85,17 +87,26 @@ export async function connectDB() {
 
   connectionPromise = (async () => {
     try {
+      // 1. Connect native client (for Better Auth adapter)
       const activeClient = getClient();
       await activeClient.connect();
       db = activeClient.db(activeDbName);
 
       // Verify connection with a ping
       await db.command({ ping: 1 });
-      isConnected = true;
-      console.log(`[Database] Successfully connected to MongoDB database: "${activeDbName}"`);
 
-      // Initialize indexes for collections
-      await initializeAllIndexes(db);
+      // 2. Connect Mongoose (for application content models)
+      if (mongoose.connection.readyState === 0) {
+        await mongoose.connect(activeUri, {
+          dbName: activeDbName,
+          serverSelectionTimeoutMS: 10000,
+          connectTimeoutMS: 10000,
+        });
+      }
+
+      isConnected = true;
+      console.log(`[Database] Successfully connected to MongoDB database: "${activeDbName}" (Native + Mongoose)`);
+
       return db;
     } catch (error) {
       isConnected = false;
@@ -113,7 +124,7 @@ export async function connectDB() {
  * Returns true if MongoDB connection is established.
  */
 export function isDBConnected() {
-  return isConnected;
+  return isConnected && mongoose.connection.readyState === 1;
 }
 
 /**
@@ -137,29 +148,17 @@ export const dbProxy = new Proxy({}, {
 });
 
 /**
- * Collection index initializers
- */
-export async function initializeProjectIndexes(database) {
-  try {
-    const collection = database.collection('projects');
-    await collection.createIndex({ slug: 1 }, { unique: true });
-    await collection.createIndex({ status: 1, createdAt: -1 });
-    await collection.createIndex({ featured: 1 });
-  } catch (error) {
-    console.warn('[Database] Warning: Failed to create project indexes:', error.message);
-  }
-}
-
-export async function initializeAllIndexes(database) {
-  await Promise.allSettled([
-    initializeProjectIndexes(database),
-  ]);
-}
-
-/**
- * Gracefully closes the MongoDB client connection.
+ * Gracefully closes both the Mongoose connection and native MongoDB client.
  */
 export async function closeDB() {
+  try {
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+  } catch (err) {
+    console.error('[Database] Error closing Mongoose connection:', err.message);
+  }
+
   if (client) {
     await client.close();
     client = null;

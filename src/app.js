@@ -2,6 +2,7 @@ import express from 'express';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './lib/auth.js';
 import { getDB, isDBConnected } from './config/db.js';
+import apiRoutes from './routes/index.js';
 
 if (typeof process.loadEnvFile === 'function') {
   try {
@@ -64,8 +65,8 @@ app.use((req, res, next) => {
 app.all(['/api/auth', '/api/auth/*splat'], toNodeHandler(auth));
 
 // 2. Global body parsers (mounted AFTER Better Auth)
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Root welcome / status route
 app.get('/', (_req, res) => {
@@ -77,6 +78,12 @@ app.get('/', (_req, res) => {
     endpoints: {
       auth: '/api/auth',
       health: '/api/health',
+      services: '/api/services',
+      projects: '/api/projects',
+      reviews: '/api/reviews',
+      faqs: '/api/faqs',
+      siteSettings: '/api/site-settings',
+      contact: '/api/contact',
     },
   });
 });
@@ -87,7 +94,7 @@ app.get('/api/health', async (_req, res) => {
   try {
     const db = getDB();
     await db.command({ ping: 1 });
-    dbStatus = 'connected';
+    dbStatus = isDBConnected() ? 'connected' : 'connected (native)';
   } catch (err) {
     dbStatus = isDBConnected() ? 'connected' : `error: ${err.message}`;
   }
@@ -102,7 +109,7 @@ app.get('/api/health', async (_req, res) => {
     ADMIN_PASSWORD: Boolean(process.env.ADMIN_PASSWORD),
   };
 
-  const isHealthy = dbStatus === 'connected' && configuredEnv.MONGODB_URI && configuredEnv.BETTER_AUTH_SECRET;
+  const isHealthy = (dbStatus === 'connected' || dbStatus === 'connected (native)') && configuredEnv.MONGODB_URI && configuredEnv.BETTER_AUTH_SECRET;
 
   res.status(isHealthy ? 200 : 503).json({
     success: isHealthy,
@@ -113,7 +120,10 @@ app.get('/api/health', async (_req, res) => {
   });
 });
 
-// 404 handler
+// 3. Mount Public REST API Routes
+app.use('/api', apiRoutes);
+
+// 404 handler for undefined routes
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -122,12 +132,41 @@ app.use((req, res) => {
   });
 });
 
-// Global error handler
+// Centralized global error handler
 app.use((err, _req, res, _next) => {
-  console.error('[App Error]:', err);
-  res.status(err.status || 500).json({
+  console.error('[App Error]:', err.message || err);
+
+  // Mongoose validation error
+  if (err.name === 'ValidationError') {
+    const details = Object.values(err.errors || {}).map((e) => e.message);
+    return res.status(400).json({
+      success: false,
+      error: 'Validation Error',
+      details,
+    });
+  }
+
+  // Mongoose duplicate key error (11000)
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyValue || {})[0] || 'field';
+    return res.status(409).json({
+      success: false,
+      error: `Duplicate value for ${field}. Please use a unique value.`,
+    });
+  }
+
+  // Mongoose cast errors
+  if (err.name === 'CastError') {
+    return res.status(400).json({
+      success: false,
+      error: `Invalid format for parameter: ${err.path}`,
+    });
+  }
+
+  // Generic internal server error (never leak raw stack or internal driver errors)
+  return res.status(err.status || 500).json({
     success: false,
-    error: err.message || 'Internal Server Error',
+    error: err.status ? err.message : 'Internal Server Error',
   });
 });
 
