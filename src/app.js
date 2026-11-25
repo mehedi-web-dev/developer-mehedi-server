@@ -84,6 +84,7 @@ app.get('/', (_req, res) => {
       faqs: '/api/faqs',
       siteSettings: '/api/site-settings',
       contact: '/api/contact',
+      admin: '/api/admin',
     },
   });
 });
@@ -107,6 +108,7 @@ app.get('/api/health', async (_req, res) => {
     FRONTEND_URL: Boolean(process.env.FRONTEND_URL),
     ADMIN_EMAIL: Boolean(process.env.ADMIN_EMAIL),
     ADMIN_PASSWORD: Boolean(process.env.ADMIN_PASSWORD),
+    IMGBB_API_KEY: Boolean(process.env.IMGBB_API_KEY),
   };
 
   const isHealthy = (dbStatus === 'connected' || dbStatus === 'connected (native)') && configuredEnv.MONGODB_URI && configuredEnv.BETTER_AUTH_SECRET;

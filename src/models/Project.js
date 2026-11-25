@@ -84,7 +84,7 @@ const projectSchema = new mongoose.Schema(
 );
 
 // Auto-generate slug before validation if not provided
-projectSchema.pre('validate', function (next) {
+projectSchema.pre('validate', function () {
   if (this.title && (!this.slug || this.isModified('title'))) {
     if (!this.slug) {
       this.slug = slugify(this.title);
@@ -92,7 +92,6 @@ projectSchema.pre('validate', function (next) {
       this.slug = slugify(this.slug);
     }
   }
-  next();
 });
 
 // Composite indexes for fast query performance on public endpoints
