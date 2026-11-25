@@ -1,7 +1,7 @@
 import express from 'express';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './lib/auth.js';
-import { getDB, isDBConnected } from './config/db.js';
+import { connectDB, getDB, isDBConnected } from './config/db.js';
 import apiRoutes from './routes/index.js';
 
 if (typeof process.loadEnvFile === 'function') {
@@ -59,6 +59,21 @@ app.use((req, res, next) => {
   next();
 });
 
+// Database connection middleware ensures MongoDB and Mongoose are connected before processing API requests
+app.use(async (req, _res, next) => {
+  // Root and health check can be processed without blocking on this middleware
+  if (req.path === '/' || req.path === '/api/health') {
+    return next();
+  }
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('[Middleware DB Connection Error]:', err.message);
+    next(err);
+  }
+});
+
 // 1. Better Auth request handler for Express 5
 // In Express 5 (path-to-regexp v8), wildcards require the '*splat' syntax.
 // Mounted BEFORE body parsers to preserve the raw request stream
@@ -93,8 +108,7 @@ app.get('/', (_req, res) => {
 app.get('/api/health', async (_req, res) => {
   let dbStatus = 'disconnected';
   try {
-    const db = getDB();
-    await db.command({ ping: 1 });
+    await connectDB();
     dbStatus = isDBConnected() ? 'connected' : 'connected (native)';
   } catch (err) {
     dbStatus = isDBConnected() ? 'connected' : `error: ${err.message}`;

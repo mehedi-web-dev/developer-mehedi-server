@@ -72,9 +72,10 @@ async function gracefulShutdown(signal) {
   }
 }
 
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-
-startServer();
+if (!process.env.VERCEL) {
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  startServer();
+}
 
 export default app;

@@ -102,6 +102,8 @@ export async function connectDB() {
           serverSelectionTimeoutMS: 10000,
           connectTimeoutMS: 10000,
         });
+      } else if (mongoose.connection.readyState === 2) {
+        await mongoose.connection.asPromise();
       }
 
       isConnected = true;
