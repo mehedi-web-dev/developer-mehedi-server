@@ -19,6 +19,8 @@ const corsOrigins = process.env.CORS_ORIGINS
 
 const backendUrl = (
   process.env.BETTER_AUTH_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : '') ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
   `http://localhost:${process.env.PORT || 5000}`
 ).trim().replace(/\/+$/, '');
 
@@ -28,7 +30,11 @@ const trustedOrigins = Array.from(
     ...corsOrigins,
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'https://developer-mehedi-chi.vercel.app',
+    'https://developer-mehedi-server.vercel.app',
     backendUrl,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : null,
   ].filter(Boolean))
 );
 
