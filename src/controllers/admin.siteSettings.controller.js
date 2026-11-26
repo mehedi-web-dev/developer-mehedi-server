@@ -42,12 +42,26 @@ export async function getAdminSiteSettings(_req, res, next) {
 export async function updateAdminSiteSettings(req, res, next) {
   try {
     const updates = req.body || {};
-
-    // Remove any unauthorized fields or root mutations
-    const allowedFields = ['personalInfo', 'socialLinks', 'skills', 'experience', 'education'];
     const sanitizedUpdates = {};
 
-    for (const key of allowedFields) {
+    // Support nested personalInfo object with dot notation to preserve sibling fields
+    if (updates.personalInfo && typeof updates.personalInfo === 'object' && !Array.isArray(updates.personalInfo)) {
+      for (const [subKey, subVal] of Object.entries(updates.personalInfo)) {
+        sanitizedUpdates[`personalInfo.${subKey}`] = subVal;
+      }
+    }
+
+    // Support direct root-level aliases for profileImage and resumeUrl if sent directly
+    if (updates.profileImage !== undefined) {
+      sanitizedUpdates['personalInfo.profileImage'] = updates.profileImage;
+    }
+    if (updates.resumeUrl !== undefined) {
+      sanitizedUpdates['personalInfo.resumeUrl'] = updates.resumeUrl;
+    }
+
+    // Array / section fields
+    const arrayFields = ['socialLinks', 'skills', 'experience', 'education'];
+    for (const key of arrayFields) {
       if (updates[key] !== undefined) {
         sanitizedUpdates[key] = updates[key];
       }

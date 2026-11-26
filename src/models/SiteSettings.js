@@ -44,17 +44,30 @@ const educationSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const urlValidator = {
+  validator: function (v) {
+    if (!v || v === '') return true;
+    try {
+      const url = new URL(v);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (_) {
+      return false;
+    }
+  },
+  message: (props) => `${props.path} must be a valid HTTP or HTTPS URL`,
+};
+
 const siteSettingsSchema = new mongoose.Schema(
   {
     personalInfo: {
       name: { type: String, trim: true, default: 'Developer Mehedi' },
       title: { type: String, trim: true, default: 'Full Stack Engineer' },
       bio: { type: String, trim: true, default: '' },
-      profileImage: { type: String, trim: true, default: '' },
+      profileImage: { type: String, trim: true, default: '', validate: urlValidator },
       email: { type: String, trim: true, default: '' },
       phone: { type: String, trim: true, default: '' },
       location: { type: String, trim: true, default: '' },
-      resumeUrl: { type: String, trim: true, default: '' },
+      resumeUrl: { type: String, trim: true, default: '', validate: urlValidator },
       availableForHire: { type: Boolean, default: true },
     },
     socialLinks: {
